@@ -16,7 +16,7 @@ model = tf.keras.models.load_model('resnet50_kidney_ct_augmented.h5')
 # Define class labels (modify according to your model's labels)
 labels = ["Cyst", "Normal", "Stone", "Tumor"]
 
-@app.post("/predict/")
+@app.post("/predict")
 async def predict(file: UploadFile = File(...)):
     # Read the image from the request
     img = Image.open(io.BytesIO(await file.read()))
