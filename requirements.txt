@@ -2,4 +2,4 @@ fastapi
 uvicorn
 tensorflow
 numpy
-pydantic
+pillow
