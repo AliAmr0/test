@@ -2,7 +2,7 @@ from fastapi import FastAPI, File, UploadFile
 import numpy as np
 import tensorflow as tf
 from PIL import Image
-import io
+from io import BytesIO
 import os
 import kagglehub
 import logging
@@ -62,21 +62,42 @@ async def startup_event():
 # Define class labels (modify according to your model's labels)
 labels = ["Cyst", "Normal", "Stone", "Tumor"]
 
+def preprocess_image(img):
+    """Preprocesses the uploaded image for ResNet50."""
+    img = img.resize((224, 224))
+    img_array = image.img_to_array(img)
+    img_array = np.expand_dims(img_array, axis=0)  # Add batch dimension
+    # Normalize using ResNet50's preprocessing
+    img_array = preprocess_input(img_array)
+    return img_array
+
 @app.post("/predict")
 async def predict(file: UploadFile = File(...)):
-    # Read the image from the request
-    img = Image.open(io.BytesIO(await file.read()))
-    img = img.convert('RGB')  # Convert image to RGB if it's in another format
+    """Receives an image file, preprocesses it, and returns TB classification."""
+    try:
+        logger.info(f"Receiving prediction request for file: {file.filename}")
+        contents = await file.read()
+        img = Image.open(BytesIO(contents)).convert("RGB")  # Ensure RGB format
+        img_array = preprocess_image(img)
 
-    # Resize and preprocess image to fit ResNet50 input format
-    img = img.resize((224, 224))  # ResNet50 expects 224x224 images
-    img_array = image.img_to_array(img)  # Convert image to numpy array
-    img_array = np.expand_dims(img_array, axis=0)  # Add batch dimension
-    img_array = preprocess_input(img_array)  # Preprocess the image for ResNet50
+        if model is None:
+            raise ValueError("Model not initialized")
 
-    # Model prediction
-    prediction = model.predict(img_array)
-    predicted_class = np.argmax(prediction, axis=1)  # Get the class index
-    
-    # Return the prediction label
-    return {"prediction": labels[predicted_class[0]]}
+       # Model prediction
+        prediction = model.predict(img_array)
+        predicted_class = np.argmax(prediction, axis=1)
+        confidence = float(prediction[0][0])  # Confidence score
+
+        logger.info(f"Prediction complete: {labels[predicted_class[0]]}")
+        return {
+            "success": True,
+            "filename": file.filename,
+            "prediction": labels[predicted_class[0]],
+            "confidence": confidence
+        }
+    except Exception as e:
+        logger.error(f"Error during prediction: {str(e)}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
