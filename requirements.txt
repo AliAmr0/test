@@ -1,6 +1,10 @@
+pandas
 fastapi
 uvicorn
+python-multipart
+pillow
 tensorflow
 numpy
-pillow
-python-multipart
+requests
+python-dotenv
+kagglehub
